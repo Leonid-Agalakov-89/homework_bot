@@ -2,6 +2,8 @@ import logging
 import os
 import sys
 import time
+from http import HTTPStatus
+from json import JSONDecodeError
 
 import requests
 import telegram
@@ -10,12 +12,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO,
-)
-
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)
+logger.addHandler(handler)
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+handler.setFormatter(formatter)
 
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
@@ -35,16 +39,16 @@ HOMEWORK_VERDICTS = {
 def check_tokens():
     """Проверка токенов."""
     if (PRACTICUM_TOKEN or TELEGRAM_TOKEN or TELEGRAM_CHAT_ID) is None:
-        raise logging.critical('Отсутствует одна из переменных окружения')
+        raise logger.critical('Отсутствует одна из переменных окружения')
 
 
 def send_message(bot, message):
     """Отправка сообщения в бот."""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
-        logging.debug('Сообщение доставлено успешно')
-    except Exception as error:
-        logging.error(f'Ошибка при запросе к основному API: {error}')
+        logger.debug('Сообщение доставлено успешно')
+    except telegram.TelegramError as error:
+        logger.error(f'Ошибка при запросе к основному API: {error}')
 
 
 def get_api_answer(timestamp):
@@ -52,32 +56,39 @@ def get_api_answer(timestamp):
     payload = {'from_date': timestamp}
     try:
         homeworks = requests.get(ENDPOINT, headers=HEADERS, params=payload)
-    except Exception as error:
-        logging.error(f'Ошибка при запросе к основному API: {error}')
-    if homeworks.status_code == 200:
-        return homeworks.json()
-    requests.RequestException
-    logging.exception()
+    except requests.exceptions.Timeout:
+        raise KeyError('Вышло время ожидания запроса')
+    except requests.exceptions.HTTPError:
+        raise KeyError('Неверный URL-адрес')
+    except requests.exceptions.RequestException:
+        raise KeyError('Критическая ошибка')
+    if homeworks.status_code == HTTPStatus.OK:
+        try:
+            return homeworks.json()
+        except JSONDecodeError:
+            print("Ответ API не преобразовался в JSON")
+    logger.exception()
 
 
 def check_response(response):
-    """Проверка API."""
+    """Проверка ответа API."""
     if 'homeworks' not in response:
-        raise TypeError
+        raise TypeError('Ключ "homeworks" отсутствует в ответе API')
     if not isinstance(response['homeworks'], list):
-        raise TypeError
-    response = response['homeworks']
-    return response
+        raise TypeError('Список домашних работ пришёл не в виде списка')
+    return response['homeworks']
 
 
 def parse_status(homework):
     """Извлечение статуса домашней работы."""
     if 'homework_name' not in homework:
-        raise ValueError('Ключ "homework_name" отсутствует')
+        raise ValueError('Ключ "homework_name" отсутствует в словаре homework')
     homework_name = homework['homework_name']
-    print(homework_name)
+    if 'status' not in homework:
+        raise ValueError('Ключ "status" отсутствует в словаре homework')
     if homework['status'] not in HOMEWORK_VERDICTS:
-        raise ValueError('Ключ "homework_status" отсутствует')
+        raise ValueError(
+            'Ключ "homework_status" отсутствует в словаре HOMEWORK_VERDICTS')
     homework_status = homework['status']
     verdict = HOMEWORK_VERDICTS[homework_status]
     if verdict is None:
@@ -94,13 +105,16 @@ def main():
     while True:
         try:
             response = get_api_answer(timestamp)
-            homework = check_response(response)[0]
+            try:
+                homework = check_response(response)[0]
+            except requests.exceptions.Timeout:
+                raise KeyError('Список домашних работ пуст')
             message = parse_status(homework)
             if message != last_message:
                 send_message(bot, message)
             else:
                 logging.debug('Статус домашней работы не изменился')
-            timestamp = response.get('current_date')
+            timestamp = response['current_date']
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
         finally:
