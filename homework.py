@@ -48,7 +48,7 @@ def send_message(bot, message):
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logger.debug('Сообщение доставлено успешно')
     except telegram.TelegramError as error:
-        logger.error(f'Ошибка при запросе к основному API: {error}')
+        raise logger.error(f'Ошибка при запросе к основному API: {error}')
 
 
 def get_api_answer(timestamp):
@@ -57,17 +57,17 @@ def get_api_answer(timestamp):
     try:
         homeworks = requests.get(ENDPOINT, headers=HEADERS, params=payload)
     except requests.exceptions.Timeout:
-        raise KeyError('Вышло время ожидания запроса')
+        raise ValueError('Вышло время ожидания запроса')
     except requests.exceptions.HTTPError:
-        raise KeyError('Неверный URL-адрес')
+        raise ValueError('Неверный URL-адрес')
     except requests.exceptions.RequestException:
-        raise KeyError('Критическая ошибка')
+        raise ValueError('Критическая ошибка')
     if homeworks.status_code == HTTPStatus.OK:
         try:
             return homeworks.json()
         except JSONDecodeError:
-            print("Ответ API не преобразовался в JSON")
-    logger.exception()
+            raise ValueError("Ответ API не преобразовался в JSON")
+    raise ValueError('API домашней работы вернул код, отличный от 200')
 
 
 def check_response(response):
@@ -82,17 +82,17 @@ def check_response(response):
 def parse_status(homework):
     """Извлечение статуса домашней работы."""
     if 'homework_name' not in homework:
-        raise ValueError('Ключ "homework_name" отсутствует в словаре homework')
+        raise KeyError('Ключ "homework_name" отсутствует в словаре homework')
     homework_name = homework['homework_name']
     if 'status' not in homework:
-        raise ValueError('Ключ "status" отсутствует в словаре homework')
+        raise KeyError('Ключ "status" отсутствует в словаре homework')
     if homework['status'] not in HOMEWORK_VERDICTS:
-        raise ValueError(
+        raise KeyError(
             'Ключ "homework_status" отсутствует в словаре HOMEWORK_VERDICTS')
     homework_status = homework['status']
     verdict = HOMEWORK_VERDICTS[homework_status]
     if verdict is None:
-        logging.exception()
+        raise KeyError('Переменная verdict пуста')
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
