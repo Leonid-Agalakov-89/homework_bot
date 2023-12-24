@@ -39,7 +39,9 @@ HOMEWORK_VERDICTS = {
 def check_tokens():
     """Проверка токенов."""
     if (PRACTICUM_TOKEN or TELEGRAM_TOKEN or TELEGRAM_CHAT_ID) is None:
-        raise ValueError('Отсутствует одна из переменных окружения')
+        raise ValueError(
+            'Отсутствует одна из переменных окружения') and logger.critical(
+                'Отсутствует одна из переменных окружения')
 
 
 def send_message(bot, message):
@@ -48,7 +50,9 @@ def send_message(bot, message):
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logger.debug('Сообщение доставлено успешно')
     except telegram.TelegramError as error:
-        raise ValueError(f'Ошибка при запросе к основному API: {error}')
+        raise ValueError(
+            f'Ошибка при запросе к основному API: {error}') and logger.error(
+                'Ошибка при запросе к основному API')
 
 
 def get_api_answer(timestamp):
