@@ -1,16 +1,32 @@
-# homework_bot
-python telegram bot
+## О проекте:
 
-## Description
-This telegram bot accesses the API of the Practicum service.Homework and finds out the status of your homework: whether your homework has been taken into review, whether it has been checked, and if it has been checked, then the reviewer accepted it or returned it for revision.
+Telegram-бот, который умеет обращаться к API учебного сервиса и узнавать статус вашей домашней работы: взята ли ваша домашка на проверку, проверена ли она, а если проверена — то принял её проверяющий или вернул на доработку.
+Стек технологий: Telegram API, JSON.
+  
+## Как запустить проект:
 
-## Instructions
-1. Fork this repository
-2. Clone the forked repository
-3. Add your contributions (code or documentation)
-4. Commit and push
-5. Wait for pull request to be merged
+1) Клонировать репозиторий и перейти в него в командной строке:
 
-## Contact
-Leonid Agalakov
-https://github.com/Leonid-Agalakov-89
+```
+git clone git@github.com:Leonid-Agalakov-89/homework_bot.git
+```
+
+```
+cd homework_bot
+```
+
+2) Запустить проект:
+```
+python homework.py
+```
+
+## Технологии:
+
+* Python
+* Telegram API
+* JSON
+
+
+## Об авторе:
+Леонид Агалаков - python backend developer.
+`https://github.com/Leonid-Agalakov-89`
